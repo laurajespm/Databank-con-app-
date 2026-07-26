@@ -12,13 +12,21 @@ from Servicios.auditlog import AuditLog
 from Servicios.promotion_request import PromotionRequest
 from Servicios.salary_inc_req import SalaryIncreaseRequest
 
-director = Director("Laura Espinosa", 1021678463, "Ingeniería", 1, "julilaura")
 
 bonus_admin = BonusAdmin()
 global bank
 bank = Bank("DataBank", 2980374, clients = [], employees = [], global_transactions= [], logs=[], bonus_admin= bonus_admin, password="1012026")
 
-bank.employees.append(director)
+# Se carga todo lo que ya se había guardado en corridas anteriores ANTES de crear
+# cualquier dato nuevo, para que la información vieja no se pierda.
+bank.import_data_json()
+
+# La directora por defecto solo se crea la primera vez
+if bank.search.search_employee_by_dni(1021678463) is None:
+    director = Director("Laura Espinosa", 1021678463, "Ingeniería", 1, "julilaura")
+    bank.employees.append(director)
+else:
+    director = bank.search.search_employee_by_dni(1021678463)
 
 databank_app = tk.Tk()
 palabra = tk.StringVar(databank_app) #guardar strings y se mapea a algun lugar de la app
@@ -3065,7 +3073,7 @@ def accept_salary_increase(director, bank, request, target_employee):
             target_dni=target_employee.get_dni(),
             details=f"Aumento salarial aprobado. Motivo original: {request.reasons}"
         )
-        bank.register_log(log_entry)
+        bank.register_log_e(log_entry)
 
         if request in bank.salary_requests:
             bank.salary_requests.remove(request)
@@ -3086,7 +3094,7 @@ def reject_salary_increase(director, bank, request):
         target_dni=request.employee.dni,
         details="Solicitud de aumento salarial rechazada."
     )
-    bank.register_log(log_entry)
+    bank.register_log_e(log_entry)
 
     raise_salaries_module(director, bank)
 
@@ -3569,7 +3577,7 @@ def go_to_add_employee_screen(dni, bank, operator):
                 target_dni=dni,
                 details="Nueva contratación en el sistema."
             )
-            bank.register_log(log_entry)
+            bank.register_log_e(log_entry)
             print(f"Nuevo objeto Empleado guardado en el backend para {full_name} con cargo {role}.")
             
             create_add_users(operator, bank)
@@ -3843,7 +3851,7 @@ def accept_promotion(director, bank, request, target_employee):
             target_dni=target_employee.get_dni(),
             details=f"Ascenso/Bono aprobado. Motivo original: {request.reasons}"
         )
-        bank.register_log(log_entry)
+        bank.register_log_e(log_entry)
 
         if request in bank.promotion_requests:
             bank.promotion_requests.remove(request)
@@ -3864,9 +3872,16 @@ def reject_promotion(director, bank, request):
         target_dni=request.employee.dni,
         details="Solicitud de ascenso rechazada."
     )
-    bank.register_log(log_entry)
+    bank.register_log_e(log_entry)
 
     open_asc_module(director, bank)
+    
+def on_close():
+    bank.export_data_json()
+    databank_app.destroy()
+
+databank_app.protocol("WM_DELETE_WINDOW", on_close)
+
 
 def show_login_bank_screen(username, bank):
     clean_screen()
